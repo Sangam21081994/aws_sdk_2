@@ -13,7 +13,7 @@ repositories {
 dependencies {
 
     // AWS SDK v2 BOM - Manages versions for SDK modules
-    implementation platform('software.amazon.awssdk:bom:2.20.56') // Replace with the latest version if needed <mcreference link="https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/setup-project-gradle.html" index="3">3</mcreference>
+    implementation platform('software.amazon.awssdk:bom:2.31.48') // Replace with the latest version if needed <mcreference link="https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/setup-project-gradle.html" index="3">3</mcreference>
 
     // AWS SDK v2 for SNS and SQS
     implementation 'software.amazon.awssdk:sns'
