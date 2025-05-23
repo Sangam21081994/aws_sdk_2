@@ -1,0 +1,31 @@
+# Gradle
+.gradle/
+build/
+
+# IDE-specific files
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# Compiled class files
+bin/
+*.class
+
+# Log files
+*.log
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Secrets and sensitive information (if any, add specific files here)
+# e.g. secrets.properties

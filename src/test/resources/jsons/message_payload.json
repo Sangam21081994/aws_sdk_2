@@ -1,0 +1,15 @@
+{
+  "type": "notification",
+  "source": "restassured-test",
+  "timestamp": "2023-07-15T10:30:00Z",
+  "data": {
+    "userId": 12345,
+    "action": "login",
+    "status": "success",
+    "details": {
+      "ipAddress": "192.168.1.1",
+      "userAgent": "Mozilla/5.0",
+      "location": "New York"
+    }
+  }
+}
