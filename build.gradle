@@ -12,13 +12,10 @@ repositories {
 
 dependencies {
 
-    // AWS SDK v2 BOM - Manages versions for SDK modules
-    implementation platform('software.amazon.awssdk:bom:2.31.48') // Replace with the latest version if needed
-
-    // AWS SDK v2 for SNS and SQS
-    implementation 'software.amazon.awssdk:sns'
-    implementation 'software.amazon.awssdk:sqs'
-    implementation 'software.amazon.awssdk:regions' // Added for Region class
+    // AWS SDK v2 - Use direct version specification instead of BOM
+    implementation 'software.amazon.awssdk:sns:2.31.48'
+    implementation 'software.amazon.awssdk:sqs:2.31.48'
+    implementation 'software.amazon.awssdk:regions:2.31.48'
     
     // JSON processing
     implementation 'org.json:json:20230618'
@@ -39,22 +36,18 @@ dependencies {
     // Jackson for JSON processing
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
 
-    // Lombok for main and test
+    // Lombok for main and test - removed annotationProcessor which is not supported in this Gradle version
     compileOnly 'org.projectlombok:lombok:1.18.38'
-    annotationProcessor 'org.projectlombok:lombok:1.18.38'
     testCompileOnly 'org.projectlombok:lombok:1.18.38'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.38'
-
-
 }
     
-// Default test configuration using JUnit
+// Default test configuration using TestNG
 test {
-    useJUnitPlatform()
+    useTestNG()
 }
 
-// TestNG configuration in Gradle
-tasks.register('testNGTests', Test) {
+// TestNG configuration in Gradle - using task instead of register for older Gradle
+task testNGTests(type: Test) {
     useTestNG() {
         // Use testng.xml file if specified via command line parameter
         if (project.hasProperty('testNGXmlFile')) {

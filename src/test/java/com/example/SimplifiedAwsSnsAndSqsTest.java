@@ -13,7 +13,7 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
-import software.amazon.awssdk.services.sqs.model.MessageAttributeValue; // as SqsMessageAttributeValue;
+// Import SQS MessageAttributeValue with fully qualified name when needed
 
 import org.json.JSONObject;
 import org.testng.*;
@@ -134,7 +134,7 @@ public class SimplifiedAwsSnsAndSqsTest {
         String messageId = UUID.randomUUID().toString();
         
         // Read the JSON payload from the file
-        String jsonFilePath = "c:\\Users\\Administrator\\Desktop\\Project\\aws_sdk_2\\src\\test\\resources\\jsons\\message_payload.json";
+        String jsonFilePath = "src/test/resources/jsons/message_payload.json";
         String jsonContent = new String(Files.readAllBytes(Paths.get(jsonFilePath)));
         
         // Parse the JSON content and add the messageId for tracking
@@ -168,7 +168,7 @@ public class SimplifiedAwsSnsAndSqsTest {
         // Add a custom attribute with application-specific data
         messageAttributes.put("Source", MessageAttributeValue.builder()
                 .dataType("String")
-                .stringValue(jsonPayload.getString("source"))  // Use the source from the JSON file
+                .stringValue(jsonPayload.optString("source", "unknown"))  // Use the source from the JSON file
                 .build());
 
         // Publish message to SNS topic with message attributes (SDK v2)
@@ -257,3 +257,4 @@ public class SimplifiedAwsSnsAndSqsTest {
         Assert.assertTrue(messageFound, "Message with ID " + messageId + " not found in SQS queue.");
     }
 }
+
