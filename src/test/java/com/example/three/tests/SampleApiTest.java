@@ -46,7 +46,7 @@ public class SampleApiTest extends BaseTest {
         messagingService = new MessagingService(
             AwsConfigUtility.getSnsTopicArn(),
             AwsConfigUtility.getSqsQueueUrl(),
-            software.amazon.awssdk.regions.Region.of(AwsConfigUtility.getRegion()), // Use SDK v2 Region
+            AwsConfigUtility.getRegion(), // Use SDK v2 Region directly
             accessKey, 
             secretKey, 
             sessionToken
