@@ -1,6 +1,9 @@
 package com.example.three.utils;
 
-import com.amazonaws.regions.Regions;
+// Replace SDK v1 import
+// import com.amazonaws.regions.Regions;
+// With SDK v2 import
+import software.amazon.awssdk.regions.Region;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,7 +17,7 @@ public class AwsConfigUtility {
     private static final Properties properties = new Properties();
     private static final String SNS_TOPIC_ARN;
     private static final String SQS_QUEUE_URL;
-    private static final Regions REGION;
+    private static final Region REGION; // Changed from Regions to Region
     private static final String MESSAGE_JSON_PATH;
 
     static {
@@ -24,13 +27,13 @@ public class AwsConfigUtility {
                 // Set default values or throw an error if the file is critical
                 SNS_TOPIC_ARN = "YOUR_SNS_TOPIC_ARN_DEFAULT"; 
                 SQS_QUEUE_URL = "YOUR_SQS_QUEUE_URL_DEFAULT";
-                REGION = Regions.US_EAST_1; // Default region
+                REGION = Region.US_EAST_1; // Changed from Regions.US_EAST_1 to Region.US_EAST_1
                 MESSAGE_JSON_PATH = "src/test/resources/three/message_payload.json";
             } else {
                 properties.load(input);
                 SNS_TOPIC_ARN = properties.getProperty("sns.topic.arn");
                 SQS_QUEUE_URL = properties.getProperty("sqs.queue.url");
-                REGION = Regions.fromName(properties.getProperty("aws.region"));
+                REGION = Region.of(properties.getProperty("aws.region")); // Changed from Regions.fromName to Region.of
                 MESSAGE_JSON_PATH = properties.getProperty("message.json.path");
             }
         } catch (IOException ex) {
@@ -63,7 +66,7 @@ public class AwsConfigUtility {
      * 
      * @return The AWS region
      */
-    public static Regions getRegion() {
+    public static Region getRegion() { // Changed return type from Regions to Region
         return REGION;
     }
 

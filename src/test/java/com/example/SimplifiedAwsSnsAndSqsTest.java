@@ -8,10 +8,12 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue; // as SqsMessageAttributeValue;
 
 import org.json.JSONObject;
 import org.testng.*;
@@ -21,7 +23,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -38,7 +44,7 @@ public class SimplifiedAwsSnsAndSqsTest {
     private static final Region REGION = Region.US_EAST_1;  // AWS region where your resources are located (SDK v2)
     
     // Will hold the AWS credentials loaded from the credentials file (SDK v2)
-    private static software.amazon.awssdk.auth.credentials.AwsCredentials awsCredentials;
+    private static AwsCredentials awsCredentials;
     
     /**
      * Setup method that runs once before any tests.
@@ -57,7 +63,7 @@ public class SimplifiedAwsSnsAndSqsTest {
      * @return AwsCredentials object containing the access key and secret key (SDK v2)
      * @throws IOException if the credentials file cannot be read or does not contain valid credentials
      */
-    private static software.amazon.awssdk.auth.credentials.AwsCredentials loadGimmeAwsCredentials() throws IOException { // Return type changed to AwsCredentials
+    private static AwsCredentials loadGimmeAwsCredentials() throws IOException {
         // Default location for gimme-aws-creds output
         String credentialsFilePath = System.getProperty("user.home") + "/.aws/credentials";
         File credentialsFile = new File(credentialsFilePath);
@@ -113,7 +119,7 @@ public class SimplifiedAwsSnsAndSqsTest {
         }
         
         // Create and return an AwsBasicCredentials object with the extracted keys (SDK v2)
-        return software.amazon.awssdk.auth.credentials.AwsBasicCredentials.create(accessKeyId, secretAccessKey);
+        return AwsBasicCredentials.create(accessKeyId, secretAccessKey);
     }
 
     /**
@@ -123,38 +129,63 @@ public class SimplifiedAwsSnsAndSqsTest {
      * @throws InterruptedException if the thread is interrupted while sleeping
      */
     @Test
-    public void testSendMessageToSnsAndVerifyInSqs() throws InterruptedException {
+    public void testSendMessageToSnsAndVerifyInSqs() throws InterruptedException, IOException {
         // Create a unique message ID to track the message
-        // This helps us identify our specific message in the SQS queue
         String messageId = UUID.randomUUID().toString();
         
-        // Create JSON payload for the message
-        // We include a unique ID so we can identify this specific message later
-        JSONObject jsonPayload = new JSONObject();
-        jsonPayload.put("message", "Hello from test");
-        jsonPayload.put("id", messageId);
+        // Read the JSON payload from the file
+        String jsonFilePath = "c:\\Users\\Administrator\\Desktop\\Project\\aws_sdk_2\\src\\test\\resources\\jsons\\message_payload.json";
+        String jsonContent = new String(Files.readAllBytes(Paths.get(jsonFilePath)));
+        
+        // Parse the JSON content and add the messageId for tracking
+        JSONObject jsonPayload = new JSONObject(jsonContent);
+        jsonPayload.put("id", messageId);  // Add the messageId to the JSON for tracking
         String message = jsonPayload.toString();
+        
+        System.out.println("Using message payload: " + message);
 
         // Initialize SNS client with gimme-aws-creds credentials (SDK v2)
-        software.amazon.awssdk.services.sns.SnsClient snsClient = software.amazon.awssdk.services.sns.SnsClient.builder()
+        SnsClient snsClient = SnsClient.builder()
                 .region(REGION)
-                .credentialsProvider(software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create(awsCredentials))
+                .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
                 .build();
 
-        // Publish message to SNS topic (SDK v2)
-        software.amazon.awssdk.services.sns.model.PublishRequest publishRequest = software.amazon.awssdk.services.sns.model.PublishRequest.builder()
+        // Create message attributes
+        Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+        
+        // Add a string attribute
+        messageAttributes.put("AttributeType", MessageAttributeValue.builder()
+                .dataType("String")
+                .stringValue("TestAttribute")
+                .build());
+                
+        // Add a number attribute
+        messageAttributes.put("Priority", MessageAttributeValue.builder()
+                .dataType("Number")
+                .stringValue("1")  // Even for Number type, the value is passed as a string
+                .build());
+                
+        // Add a custom attribute with application-specific data
+        messageAttributes.put("Source", MessageAttributeValue.builder()
+                .dataType("String")
+                .stringValue(jsonPayload.getString("source"))  // Use the source from the JSON file
+                .build());
+
+        // Publish message to SNS topic with message attributes (SDK v2)
+        PublishRequest publishRequest = PublishRequest.builder()
                 .topicArn(SNS_TOPIC_ARN)
                 .message(message)
+                .messageAttributes(messageAttributes)  // Add the message attributes here
                 .build();
-        software.amazon.awssdk.services.sns.model.PublishResponse publishResult = snsClient.publish(publishRequest); // Changed to PublishResponse
+        PublishResponse publishResult = snsClient.publish(publishRequest);
         
         // Log the message ID returned by SNS for debugging purposes
-        System.out.println("Message published to SNS. MessageId: " + publishResult.messageId()); // Use messageId()
+        System.out.println("Message published to SNS. MessageId: " + publishResult.messageId());
 
         // Initialize SQS client with gimme-aws-creds credentials (SDK v2)
-        software.amazon.awssdk.services.sqs.SqsClient sqsClient = software.amazon.awssdk.services.sqs.SqsClient.builder()
+        SqsClient sqsClient = SqsClient.builder()
                 .region(REGION)
-                .credentialsProvider(software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create(awsCredentials))
+                .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
                 .build();
 
         // Wait for the message to propagate from SNS to SQS
@@ -168,18 +199,20 @@ public class SimplifiedAwsSnsAndSqsTest {
         // Try multiple times to find the message, with delays between attempts
         for (int attempt = 0; attempt < maxAttempts && !messageFound; attempt++) {
             // Create a request to receive messages from the SQS queue (SDK v2)
-            software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest receiveRequest = software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest.builder()
+            // Make sure to request message attributes in the receive request
+            ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
                     .queueUrl(SQS_QUEUE_URL)
                     .maxNumberOfMessages(10)
                     .waitTimeSeconds(5)
+                    .messageAttributeNames("All")  // Request all message attributes
                     .build();
             
             // Receive messages from the SQS queue (SDK v2)
-            List<software.amazon.awssdk.services.sqs.model.Message> messages = sqsClient.receiveMessage(receiveRequest).messages(); // Use messages()
+            List<Message> messages = sqsClient.receiveMessage(receiveRequest).messages();
             
             // Check each message to see if it contains our unique message ID
-            for (software.amazon.awssdk.services.sqs.model.Message sqsMessage : messages) {
-                String body = sqsMessage.body(); // Use body()
+            for (Message sqsMessage : messages) {
+                String body = sqsMessage.body();
                 System.out.println("Received message: " + body);
                 
                 // When a message is sent from SNS to SQS, SNS wraps the original message
@@ -188,10 +221,24 @@ public class SimplifiedAwsSnsAndSqsTest {
                 if (body.contains(messageId)) {
                     messageFound = true;
                     
+                    // Print any message attributes that were received
+                    Map<String, software.amazon.awssdk.services.sqs.model.MessageAttributeValue> receivedAttributes = 
+                            sqsMessage.messageAttributes();
+                    
+                    if (receivedAttributes != null && !receivedAttributes.isEmpty()) {
+                        System.out.println("Received message attributes:");
+                        for (Map.Entry<String, software.amazon.awssdk.services.sqs.model.MessageAttributeValue> entry : 
+                                receivedAttributes.entrySet()) {
+                            System.out.println(entry.getKey() + ": " + entry.getValue().stringValue());
+                        }
+                    } else {
+                        System.out.println("No message attributes received");
+                    }
+                    
                     // Delete the message from the queue after verification (SDK v2)
-                    software.amazon.awssdk.services.sqs.model.DeleteMessageRequest deleteRequest = software.amazon.awssdk.services.sqs.model.DeleteMessageRequest.builder()
+                    DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
                             .queueUrl(SQS_QUEUE_URL)
-                            .receiptHandle(sqsMessage.receiptHandle()) // Use receiptHandle()
+                            .receiptHandle(sqsMessage.receiptHandle())
                             .build();
                     sqsClient.deleteMessage(deleteRequest);
                     break;
@@ -207,8 +254,6 @@ public class SimplifiedAwsSnsAndSqsTest {
 
         // Assert that the message was found in the SQS queue
         // This will cause the test to fail if the message was not found
-        
-        
         Assert.assertTrue(messageFound, "Message with ID " + messageId + " not found in SQS queue.");
     }
 }

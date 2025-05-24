@@ -1,12 +1,9 @@
 package com.example.three.services;
 
-// SDK v2 Imports
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSSessionCredentials;
-// import com.amazonaws.auth.AWSCredentials; // Remove SDK v1
-// import com.amazonaws.auth.BasicAWSCredentials; // Remove SDK v1
-// import com.amazonaws.auth.BasicSessionCredentials; // Remove SDK v1
+// Add these SDK v2 imports if not already present
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -25,7 +22,7 @@ public class AwsCredentialService {
      * @return AwsCredentials object (specifically AwsSessionCredentials if a session token is present)
      * @throws IOException if the credentials file cannot be read or required fields are missing
      */
-    public static software.amazon.awssdk.auth.credentials.AwsCredentials getGimmeAwsCredentials() throws IOException { // Changed return type to AwsCredentials
+    public static AwsCredentials getGimmeAwsCredentials() throws IOException { // Changed return type to AwsCredentials
         // Get the user's home directory
         String userHome = System.getProperty("user.home");
         File credentialsFile = new File(userHome + "/.aws/credentials");
