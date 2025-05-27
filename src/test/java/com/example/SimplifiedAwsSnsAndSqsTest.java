@@ -4,6 +4,8 @@ package com.example;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
@@ -22,14 +24,17 @@ import org.testng.annotations.Test;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 
 /**
@@ -42,6 +47,7 @@ public class SimplifiedAwsSnsAndSqsTest {
     private static final String SNS_TOPIC_ARN = "YOUR_SNS_TOPIC_ARN";  // ARN of the SNS topic to publish to
     private static final String SQS_QUEUE_URL = "YOUR_SQS_QUEUE_URL";  // URL of the SQS queue to check for messages
     private static final Region REGION = Region.US_EAST_1;  // AWS region where your resources are located (SDK v2)
+    private static final String JSON_FILE_PATH = "src/test/resources/jsons/message_payload.json";
     
     // Will hold the AWS credentials loaded from the credentials file (SDK v2)
     private static AwsCredentials awsCredentials;
@@ -64,62 +70,54 @@ public class SimplifiedAwsSnsAndSqsTest {
      * @throws IOException if the credentials file cannot be read or does not contain valid credentials
      */
     private static AwsCredentials loadGimmeAwsCredentials() throws IOException {
-        // Default location for gimme-aws-creds output
         String credentialsFilePath = System.getProperty("user.home") + "/.aws/credentials";
-        File credentialsFile = new File(credentialsFilePath);
+        Properties props = new Properties();
         
-        // Check if the credentials file exists
-        if (!credentialsFile.exists()) {
-            throw new IOException("AWS credentials file not found. Please run gimme-aws-creds first.");
+        try (FileInputStream fis = new FileInputStream(credentialsFilePath)) {
+            props.load(fis);
         }
         
-        String accessKeyId = null;
-        String secretAccessKey = null;
+        String accessKeyId = props.getProperty("aws_access_key_id");
+        String secretAccessKey = props.getProperty("aws_secret_access_key");
         
-        // Read credentials file to extract access key and secret key
-        try (BufferedReader reader = new BufferedReader(new FileReader(credentialsFile))) {
-            String line;
-            boolean inDefaultProfile = false;  // Flag to track if we're in the [default] profile section
-            
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                
-                // Check if we're entering the [default] profile section
-                if (line.equals("[default]")) {
-                    inDefaultProfile = true;
-                    continue;
-                } else if (line.startsWith("[") && line.endsWith("]")) {
-                    // We've reached a different profile section, so exit the default section
-                    inDefaultProfile = false;
-                    continue;
-                }
-                
-                // Only process lines if we're in the default profile section
-                if (inDefaultProfile) {
-                    // Extract the access key ID
-                    if (line.startsWith("aws_access_key_id")) {
-                        accessKeyId = line.split("=")[1].trim();
-                    } 
-                    // Extract the secret access key
-                    else if (line.startsWith("aws_secret_access_key")) {
-                        secretAccessKey = line.split("=")[1].trim();
-                    }
-                }
-                
-                // If we've found both keys, we can stop reading the file
-                if (accessKeyId != null && secretAccessKey != null) {
-                    break;
-                }
-            }
-        }
-        
-        // Verify that we found both keys
         if (accessKeyId == null || secretAccessKey == null) {
             throw new IOException("Could not find AWS credentials in the credentials file.");
         }
         
-        // Create and return an AwsBasicCredentials object with the extracted keys (SDK v2)
         return AwsBasicCredentials.create(accessKeyId, secretAccessKey);
+    }
+
+    /**
+     * Alternative method to get credentials using AWS SDK's built-in providers
+     */
+    private static StaticCredentialsProvider getCredentialsProvider() {
+        // Option 1: Use DefaultCredentialsProvider (checks multiple sources)
+        return StaticCredentialsProvider.create(
+            DefaultCredentialsProvider.create().resolveCredentials()
+        );
+        
+        // Option 2: Use ProfileCredentialsProvider (for specific profile)
+        // return ProfileCredentialsProvider.create("default");
+    }
+    
+    /**
+     * Helper method for creating AWS service clients
+     */
+    private static <T extends software.amazon.awssdk.core.SdkClient> T createAwsClient(
+            Function<? super software.amazon.awssdk.core.client.builder.SdkClientBuilder<?, T>,
+            software.amazon.awssdk.core.client.builder.SdkClientBuilder<?, T>> builderCustomizer) {
+        
+        // This is a simplified version - in a real implementation, you would need to handle
+        // the specific builder types for each service
+        throw new UnsupportedOperationException("This is a placeholder method that needs implementation");
+    }
+    
+    /**
+     * Load AWS credentials from a specific profile
+     */
+    private static AwsCredentials loadAwsCredentials(String profileName) throws IOException {
+        ProfileCredentialsProvider provider = ProfileCredentialsProvider.create(profileName);
+        return provider.resolveCredentials();
     }
 
     /**
@@ -134,8 +132,7 @@ public class SimplifiedAwsSnsAndSqsTest {
         String messageId = UUID.randomUUID().toString();
         
         // Read the JSON payload from the file
-        String jsonFilePath = "src/test/resources/jsons/message_payload.json";
-        String jsonContent = new String(Files.readAllBytes(Paths.get(jsonFilePath)));
+        String jsonContent = new String(Files.readAllBytes(Paths.get(JSON_FILE_PATH)));
         
         // Parse the JSON content and add the messageId for tracking
         JSONObject jsonPayload = new JSONObject(jsonContent);
@@ -218,7 +215,7 @@ public class SimplifiedAwsSnsAndSqsTest {
                 // When a message is sent from SNS to SQS, SNS wraps the original message
                 // in additional JSON with metadata. We just need to check if our message ID
                 // is contained somewhere in this wrapped message.
-                if (body.contains(messageId)) {
+                if (body.contains(String.valueOf(messageId))) {
                     messageFound = true;
                     
                     // Print any message attributes that were received

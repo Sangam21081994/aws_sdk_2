@@ -20,40 +20,42 @@ dependencies {
     // JSON processing
     implementation 'org.json:json:20230618'
     
+    // RestAssured
+    implementation 'io.rest-assured:rest-assured:5.4.0'
     
-    // TestNG and RestAssured for package 'two'
-    testImplementation 'io.rest-assured:rest-assured:5.4.0' // Use the latest version
-    testImplementation 'org.testng:testng:7.10.2' // Use the latest version
-    testImplementation 'org.slf4j:slf4j-simple:2.0.13' // Use the latest version
-    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1' // Use the latest version
+    // Cucumber and JUnit dependencies
+    testImplementation 'io.cucumber:cucumber-java:7.15.0'
+    testImplementation 'io.cucumber:cucumber-junit:7.15.0'
+    testImplementation 'io.cucumber:cucumber-picocontainer:7.15.0' // For dependency injection
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+    testImplementation 'org.slf4j:slf4j-simple:2.0.13'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
 
-
-    // https://mvnrepository.com/artifact/org.projectlombok/lombok
-    compileOnly 'org.projectlombok:lombok:1.18.38'
-
-
-    
-    // Jackson for JSON processing
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
-
-    // Lombok for main and test - removed annotationProcessor which is not supported in this Gradle version
+    // Lombok
     compileOnly 'org.projectlombok:lombok:1.18.38'
     testCompileOnly 'org.projectlombok:lombok:1.18.38'
 }
     
-// Default test configuration using TestNG
+// Configure test task to use JUnit
 test {
-    useTestNG()
+    useJUnitPlatform()
+    systemProperty "cucumber.junit-platform.naming-strategy", "long"
 }
 
-// TestNG configuration in Gradle - using task instead of register for older Gradle
-task testNGTests(type: Test) {
-    useTestNG() {
-        // Use testng.xml file if specified via command line parameter
-        if (project.hasProperty('testNGXmlFile')) {
-            suites project.property('testNGXmlFile')
+// Cucumber configuration
+task cucumberTests() {
+    dependsOn assemble, testClasses
+    doLast {
+        javaexec {
+            main = "io.cucumber.core.cli.Main"
+            classpath = configurations.testRuntimeClasspath + sourceSets.main.output + sourceSets.test.output
+            args = [
+                    '--plugin', 'pretty',
+                    '--plugin', 'html:build/reports/cucumber/report.html',
+                    '--glue', 'com.example.steps',
+                    'src/test/resources/features'
+            ]
         }
     }
-    // Enable parallel execution
-    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
 }
